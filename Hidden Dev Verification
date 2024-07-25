@@ -1,0 +1,276 @@
+local ts = game:GetService("TweenService")
+local is = game:GetService("UserInputService")
+local LocalPlayer = game.Players.LocalPlayer
+local opensound = game.ReplicatedStorage.Sounds:WaitForChild("UIOpen")
+local bagopensound = game.ReplicatedStorage.Sounds:WaitForChild("BagOpen")
+local closesound = game.ReplicatedStorage.Sounds:WaitForChild("UIClose")
+local equipsound = game.ReplicatedStorage.Sounds:WaitForChild("Equip")
+local debounce = LocalPlayer:FindFirstChild("BagOpenDebounce")
+
+local BagOpenTi = TweenInfo.new(
+	0.1,
+	Enum.EasingStyle.Back,
+	Enum.EasingDirection.Out
+
+)
+local ti = TweenInfo.new(
+	1,
+	Enum.EasingStyle.Bounce,
+	Enum.EasingDirection.Out
+)
+local FoodOpenTi = TweenInfo.new(
+	1.5,
+	Enum.EasingStyle.Linear,
+	Enum.EasingDirection.Out
+)
+local OpenImage = nil
+local Uiframes = game.Workspace.Bags:GetChildren()
+LocalPlayer.CharacterAdded:Wait()
+wait(0.1)
+game.ReplicatedStorage.GiveBagImage.OnClientEvent:Connect(function(img)
+	print("GotEvent")
+	OpenImage = game.ReplicatedStorage.FoodImageIDs:FindFirstChild(img)
+	print(OpenImage)
+	print(OpenImage.Value)
+end)
+local function OpenBag(Bag)
+	opensound:Play()
+	local BagsYouCanOpen = {}
+	for i,v in pairs(Uiframes) do
+		local Pedastol = v:FindFirstChild("Pedastol")
+		if Pedastol and (Pedastol.Primary.Position + Vector3.new(0,15,0) - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < 25 then
+			table.insert(BagsYouCanOpen,Pedastol.Parent)
+		end
+	end
+
+
+	table.sort(BagsYouCanOpen, function(a,b)
+
+		return (a.Pedastol.Primary.Position + Vector3.new(0,15,0) - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < (b.Pedastol.Primary.Position + Vector3.new(0,15,0) - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+
+
+	end)
+	if BagsYouCanOpen[1] and BagsYouCanOpen[1] ~= nil then
+		game.ReplicatedStorage.OpenBag:FireServer(BagsYouCanOpen[1])
+
+	end
+	-- Open Animation
+	if BagsYouCanOpen[1] ~=  nil and LocalPlayer:FindFirstChild("leaderstats"):FindFirstChild("wins").Value >= BagsYouCanOpen[1]:FindFirstChild("Price").Value and #LocalPlayer.PlayerFoods:GetChildren() < 50 then
+		local Bag = BagsYouCanOpen[1]
+		print("AnimStarted")
+		bagopensound:Play()
+		if Bag and Bag:FindFirstChild("BagModel") then
+			local BagModel = Bag:FindFirstChild("BagModel"):Clone()
+			local EggOpenView = LocalPlayer.PlayerGui.EggOpenViewport
+			local Viewport = EggOpenView.ViewportFrame
+			local Image = EggOpenView.ViewImage
+			local Primary = BagModel:FindFirstChild("Primary")
+
+			BagModel.Parent = Viewport
+			local ViewportCamera = Instance.new("Camera")
+			ViewportCamera.CameraType = Enum.CameraType.Scriptable
+			Viewport.CurrentCamera = ViewportCamera
+			ViewportCamera.CFrame =  Primary.CFrame:ToWorldSpace(CFrame.new(Vector3.new(0,1,-7))) * CFrame.Angles(0,math.rad(180),0)
+
+			if BagModel:FindFirstChild("Tween") then
+				BagModel.Tween:Destroy()
+			end
+
+			for i,part in pairs(BagModel:GetDescendants()) do
+				if part:IsA("BasePart") or part:IsA("UnionOperation") and  part == not Primary then
+					part.Anchored = false
+				end
+			end
+
+
+			for i = 1,5,1 do
+				local TweenLeft = ts:Create(ViewportCamera,BagOpenTi,{CFrame =  Primary.CFrame:ToWorldSpace(CFrame.new(Vector3.new(0,2.5,-7))) * CFrame.Angles(0.1,math.rad(180),math.rad(10 + i*4))})
+				local TweenRight = ts:Create(ViewportCamera,BagOpenTi,{CFrame =  Primary.CFrame:ToWorldSpace(CFrame.new(Vector3.new(0,2.5,-7))) * CFrame.Angles(0.1,math.rad(180),math.rad(-10 + i* -4))})
+				TweenLeft:Play()
+				TweenLeft.Completed:Wait()
+				TweenRight:Play()
+				TweenRight.Completed:Wait()
+			end
+			local SpinTween = ts:Create(Image.ImageLabel,FoodOpenTi,{Rotation = 180})
+			print("AnimCompleted")
+			Image.Size = UDim2.new (0.3, 100,0.3, 100)
+			BagModel:Destroy()
+			print("event")
+			task.wait(0.1)
+			if OpenImage then
+				Image.Image = "http://www.roblox.com/asset/?id=" .. OpenImage.Value
+				Image.ImageTransparency = 0
+				Image.ImageLabel.ImageTransparency = 0.5
+				Image.TextLabel.TextTransparency = 0
+				Image.TextLabel.Text = OpenImage.Name
+				Image.TextLabel.UIStroke.Transparency = 0
+			end
+			print(OpenImage)
+			local ImageTween = ts:Create(Image,FoodOpenTi,{Size = UDim2.new(0.35, 110,0.35, 110)})
+			Image.ImageLabel.Rotation = 0
+			SpinTween:Play()
+			ImageTween:Play()
+			equipsound:Play()
+			ImageTween.Completed:Wait()
+
+
+			ViewportCamera:Destroy()
+
+
+			Image.ImageTransparency = 1
+			Image.ImageLabel.ImageTransparency = 1
+			Image.TextLabel.TextTransparency = 1
+			Image.TextLabel.UIStroke.Transparency = 1
+		else
+			local errorsound = game.ReplicatedStorage.Sounds.Popup
+			errorsound:Play()
+		end
+	else
+		debounce.Value = false
+		print("Could not find bag model")
+	end
+end
+
+wait(0.1)
+
+for i,v in pairs(game.Workspace.Bags:GetChildren()) do 
+
+	local model = v
+	local displayClone = game.StarterGui.Display:Clone()
+	displayClone.Parent = LocalPlayer.PlayerGui
+	displayClone.Name = model.Name
+	displayClone.Enabled = true
+	local pedastol = model:WaitForChild("Pedastol")
+	displayClone.Adornee = pedastol 
+	local Uiframe = LocalPlayer.PlayerGui:WaitForChild(v.Name)
+	local drops = model:WaitForChild("Drops")
+	local PetImageSlot = 1
+	local FoodImageIds = game.ReplicatedStorage:WaitForChild("FoodImageIDs")
+	local PriceBoard = model:FindFirstChild("Price")
+	
+		pedastol:WaitForChild("PricePart").SurfaceGui.TextLabel.Text = PriceBoard.Value
+	
+
+	--ordering the drops base on %
+	local children = drops:GetChildren()
+
+	table.sort(children, function(a,b)
+		return a:FindFirstChild("DropChance").Value > b:FindFirstChild("DropChance").Value
+	end)
+
+
+
+	for i,v in pairs(children) do
+		local drop = v
+		if drop then
+			local dropChance = drop:FindFirstChild("DropChance").Value
+			local Imageslot = Uiframe.Frame:FindFirstChild(PetImageSlot)
+			if Imageslot then
+
+				local textslot = Imageslot:FindFirstChild("TextLabel")
+
+				if FoodImageIds:FindFirstChild(drop.Value) then
+					Imageslot.Image = "http://www.roblox.com/asset/?id=" .. FoodImageIds:FindFirstChild(drop.Value).Value
+
+				else
+					warn("Couldn't find image")
+					Imageslot.Image = "rbxassetid://1000000"
+					Imageslot.Transparency = 1
+				end
+
+				if dropChance == 0 then
+					textslot.Text = "???"
+				else
+					textslot.Text =  tostring(tonumber(string.sub(tostring(dropChance)* 100, 1, 5)))  .. "%"
+				end
+
+				if dropChance <= 0.5 then
+					textslot.TextColor3 = Color3.fromRGB(52, 255, 41)
+				end
+				if dropChance <= 0.3 then
+					textslot.TextColor3 = Color3.fromRGB(98, 255, 237)
+				end
+				if dropChance <= 0.1 then
+					textslot.TextColor3 = Color3.fromRGB(255, 182, 64)
+				end
+				if dropChance <= 0.05 then
+					textslot.TextColor3 = Color3.fromRGB(99, 60, 255)
+				end
+				if dropChance <= 0.01 then
+					textslot.TextColor3 = Color3.fromRGB(220, 7, 145)
+				end
+				if dropChance <= 0.005 then
+					textslot.TextColor3 = Color3.fromRGB(51, 218, 126)
+				end
+
+
+				PetImageSlot += 1
+			end
+
+		end
+
+
+	end
+
+
+end
+
+
+for i,v in pairs(Uiframes) do
+	local function checkMagnitude()
+		while wait(0.1) do
+			if v:FindFirstChild("Pedastol") and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				local Pedastol = v:FindFirstChild("Pedastol")
+				local Uiframe = LocalPlayer.PlayerGui:FindFirstChild(v.Name)
+				Uiframe.Enabled = false
+				local tweenUIout = ts:Create(Uiframe,ti,{Size = UDim2.new(1,200,1,200)})
+				local tweenUIin = ts:Create(Uiframe,ti,{Size = UDim2.new(0)})
+
+				if Pedastol and Pedastol.PrimaryPart and (Pedastol.PrimaryPart.Position + Vector3.new(0,15,0) - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < 25 then
+					Uiframe.OpenFrame.TextButton.MouseButton1Up:Connect(function()
+
+						if debounce.Value == false then
+							debounce.Value = true
+							OpenBag()
+							print("Opened by press")
+
+						end
+
+					end)
+
+
+
+					Uiframe.Size = UDim2.new(0,20,0,20)
+					Uiframe.Enabled = true
+					tweenUIout:Play()
+					repeat wait(0.1) until (Pedastol.Primary.Position + Vector3.new(0,15,0) - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 28
+
+					tweenUIin:Play()
+					tweenUIin.Completed:Wait()
+
+					Uiframe.Enabled = false
+				end	
+
+
+
+			else
+				print("errrrrrror")
+			end
+
+
+		end
+
+	end
+	task.spawn(checkMagnitude)
+end
+
+is.InputBegan:Connect(function(input,typing)
+	if typing == false and input.KeyCode == Enum.KeyCode.E then
+		if debounce.Value == false then
+			debounce.Value = true
+			OpenBag()
+			print("Opened by e")
+		end
+
+	end
+end)
