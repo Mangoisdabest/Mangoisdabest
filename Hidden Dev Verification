@@ -1,31 +1,39 @@
-local ts = game:GetService("TweenService")
-local is = game:GetService("UserInputService")
+--Variables and references
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = game.Players.LocalPlayer
-local opensound = game.ReplicatedStorage.Sounds:WaitForChild("UIOpen")
-local bagopensound = game.ReplicatedStorage.Sounds:WaitForChild("BagOpen")
-local closesound = game.ReplicatedStorage.Sounds:WaitForChild("UIClose")
-local equipsound = game.ReplicatedStorage.Sounds:WaitForChild("Equip")
-local debounce = LocalPlayer:FindFirstChild("BagOpenDebounce")
-
+--Sounds for bag
+local UIOpenSound = game.ReplicatedStorage.Sounds:WaitForChild("UIOpen")
+local BagOpenSound = game.ReplicatedStorage.Sounds:WaitForChild("BagOpen")
+local CloseSound = game.ReplicatedStorage.Sounds:WaitForChild("UIClose")
+local EquipSound = game.ReplicatedStorage.Sounds:WaitForChild("Equip")
+--Debounce
+local debounce = LocalPlayer:WaitForChild("BagOpenDebounce")
+-- Tween Info
+--Bag Animation 
 local BagOpenTi = TweenInfo.new(
 	0.1,
 	Enum.EasingStyle.Back,
 	Enum.EasingDirection.Out
 
 )
-local ti = TweenInfo.new(
+--Tween Info for the UI when you get close
+local UiTi = TweenInfo.new(
 	1,
 	Enum.EasingStyle.Bounce,
 	Enum.EasingDirection.Out
 )
+-- For the Food image to get bigger
 local FoodOpenTi = TweenInfo.new(
 	1.5,
 	Enum.EasingStyle.Linear,
 	Enum.EasingDirection.Out
 )
+--Getting the Opening image for when the bag is finished opening
 local OpenImage = nil
 local Uiframes = game.Workspace.Bags:GetChildren()
 LocalPlayer.CharacterAdded:Wait()
+--Buffer Wait just in case
 wait(0.1)
 game.ReplicatedStorage.GiveBagImage.OnClientEvent:Connect(function(img)
 	print("GotEvent")
@@ -33,8 +41,10 @@ game.ReplicatedStorage.GiveBagImage.OnClientEvent:Connect(function(img)
 	print(OpenImage)
 	print(OpenImage.Value)
 end)
+--Opening the bag function
 local function OpenBag(Bag)
-	opensound:Play()
+	UIOpenSound:Play()
+	--Getting the closest bag
 	local BagsYouCanOpen = {}
 	for i,v in pairs(Uiframes) do
 		local Pedastol = v:FindFirstChild("Pedastol")
@@ -43,7 +53,7 @@ local function OpenBag(Bag)
 		end
 	end
 
-
+	--Sorting the table
 	table.sort(BagsYouCanOpen, function(a,b)
 
 		return (a.Pedastol.Primary.Position + Vector3.new(0,15,0) - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < (b.Pedastol.Primary.Position + Vector3.new(0,15,0) - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
@@ -58,7 +68,8 @@ local function OpenBag(Bag)
 	if BagsYouCanOpen[1] ~=  nil and LocalPlayer:FindFirstChild("leaderstats"):FindFirstChild("wins").Value >= BagsYouCanOpen[1]:FindFirstChild("Price").Value and #LocalPlayer.PlayerFoods:GetChildren() < 50 then
 		local Bag = BagsYouCanOpen[1]
 		print("AnimStarted")
-		bagopensound:Play()
+		BagOpenSound:Play()
+		--Doing Viewport for animation
 		if Bag and Bag:FindFirstChild("BagModel") then
 			local BagModel = Bag:FindFirstChild("BagModel"):Clone()
 			local EggOpenView = LocalPlayer.PlayerGui.EggOpenViewport
@@ -75,29 +86,32 @@ local function OpenBag(Bag)
 			if BagModel:FindFirstChild("Tween") then
 				BagModel.Tween:Destroy()
 			end
-
+			-- Making it so that only the owner of the welds is anchored, so I don't need to use MoveTos
 			for i,part in pairs(BagModel:GetDescendants()) do
 				if part:IsA("BasePart") or part:IsA("UnionOperation") and  part == not Primary then
 					part.Anchored = false
 				end
 			end
 
-
+			-- Animation
 			for i = 1,5,1 do
-				local TweenLeft = ts:Create(ViewportCamera,BagOpenTi,{CFrame =  Primary.CFrame:ToWorldSpace(CFrame.new(Vector3.new(0,2.5,-7))) * CFrame.Angles(0.1,math.rad(180),math.rad(10 + i*4))})
-				local TweenRight = ts:Create(ViewportCamera,BagOpenTi,{CFrame =  Primary.CFrame:ToWorldSpace(CFrame.new(Vector3.new(0,2.5,-7))) * CFrame.Angles(0.1,math.rad(180),math.rad(-10 + i* -4))})
+				-- Tweens for the camera
+				local TweenLeft = TweenService:Create(ViewportCamera,BagOpenTi,{CFrame =  Primary.CFrame:ToWorldSpace(CFrame.new(Vector3.new(0,2.5,-7))) * CFrame.Angles(0.1,math.rad(180),math.rad(10 + i*4))})
+				local TweenRight = TweenService:Create(ViewportCamera,BagOpenTi,{CFrame =  Primary.CFrame:ToWorldSpace(CFrame.new(Vector3.new(0,2.5,-7))) * CFrame.Angles(0.1,math.rad(180),math.rad(-10 + i* -4))})
 				TweenLeft:Play()
 				TweenLeft.Completed:Wait()
 				TweenRight:Play()
 				TweenRight.Completed:Wait()
 			end
-			local SpinTween = ts:Create(Image.ImageLabel,FoodOpenTi,{Rotation = 180})
+			-- For the effect
+			local SpinTween = TweenService:Create(Image.ImageLabel,FoodOpenTi,{Rotation = 180})
 			print("AnimCompleted")
 			Image.Size = UDim2.new (0.3, 100,0.3, 100)
 			BagModel:Destroy()
 			print("event")
 			task.wait(0.1)
 			if OpenImage then
+				--Putting the Image in the Imagelabel
 				Image.Image = "http://www.roblox.com/asset/?id=" .. OpenImage.Value
 				Image.ImageTransparency = 0
 				Image.ImageLabel.ImageTransparency = 0.5
@@ -106,14 +120,15 @@ local function OpenBag(Bag)
 				Image.TextLabel.UIStroke.Transparency = 0
 			end
 			print(OpenImage)
-			local ImageTween = ts:Create(Image,FoodOpenTi,{Size = UDim2.new(0.35, 110,0.35, 110)})
+			local ImageTween = TweenService:Create(Image,FoodOpenTi,{Size = UDim2.new(0.35, 110,0.35, 110)})
+			--Starting
 			Image.ImageLabel.Rotation = 0
 			SpinTween:Play()
 			ImageTween:Play()
-			equipsound:Play()
+			EquipSound:Play()
 			ImageTween.Completed:Wait()
 
-
+			--Ending
 			ViewportCamera:Destroy()
 
 
@@ -130,9 +145,9 @@ local function OpenBag(Bag)
 		print("Could not find bag model")
 	end
 end
-
-wait(0.1)
-
+-- Another buffer for like no reason you know what im commenting it
+--wait(0.1)
+-- At the start the Images on the billboardGUI are not there, so This loads them in and does the percentages
 for i,v in pairs(game.Workspace.Bags:GetChildren()) do 
 
 	local model = v
@@ -147,9 +162,9 @@ for i,v in pairs(game.Workspace.Bags:GetChildren()) do
 	local PetImageSlot = 1
 	local FoodImageIds = game.ReplicatedStorage:WaitForChild("FoodImageIDs")
 	local PriceBoard = model:FindFirstChild("Price")
-	
-		pedastol:WaitForChild("PricePart").SurfaceGui.TextLabel.Text = PriceBoard.Value
-	
+
+	pedastol:WaitForChild("PricePart").SurfaceGui.TextLabel.Text = PriceBoard.Value
+
 
 	--ordering the drops base on %
 	local children = drops:GetChildren()
@@ -168,7 +183,7 @@ for i,v in pairs(game.Workspace.Bags:GetChildren()) do
 			if Imageslot then
 
 				local textslot = Imageslot:FindFirstChild("TextLabel")
-
+				--Getting the image
 				if FoodImageIds:FindFirstChild(drop.Value) then
 					Imageslot.Image = "http://www.roblox.com/asset/?id=" .. FoodImageIds:FindFirstChild(drop.Value).Value
 
@@ -177,7 +192,7 @@ for i,v in pairs(game.Workspace.Bags:GetChildren()) do
 					Imageslot.Image = "rbxassetid://1000000"
 					Imageslot.Transparency = 1
 				end
-
+				--Setting the %
 				if dropChance == 0 then
 					textslot.Text = "???"
 				else
@@ -220,11 +235,12 @@ for i,v in pairs(Uiframes) do
 	local function checkMagnitude()
 		while wait(0.1) do
 			if v:FindFirstChild("Pedastol") and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				-- Checks if the player is close to the BillboardGUI and if they are, it tweens it out
 				local Pedastol = v:FindFirstChild("Pedastol")
 				local Uiframe = LocalPlayer.PlayerGui:FindFirstChild(v.Name)
 				Uiframe.Enabled = false
-				local tweenUIout = ts:Create(Uiframe,ti,{Size = UDim2.new(1,200,1,200)})
-				local tweenUIin = ts:Create(Uiframe,ti,{Size = UDim2.new(0)})
+				local tweenUIout = TweenService:Create(Uiframe,UiTi,{Size = UDim2.new(1,200,1,200)})
+				local tweenUIin = TweenService:Create(Uiframe,UiTi,{Size = UDim2.new(0)})
 
 				if Pedastol and Pedastol.PrimaryPart and (Pedastol.PrimaryPart.Position + Vector3.new(0,15,0) - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < 25 then
 					Uiframe.OpenFrame.TextButton.MouseButton1Up:Connect(function()
@@ -263,8 +279,8 @@ for i,v in pairs(Uiframes) do
 	end
 	task.spawn(checkMagnitude)
 end
-
-is.InputBegan:Connect(function(input,typing)
+--Opening by E
+UserInputService.InputBegan:Connect(function(input,typing)
 	if typing == false and input.KeyCode == Enum.KeyCode.E then
 		if debounce.Value == false then
 			debounce.Value = true
